@@ -15,5 +15,6 @@ You'll need:
 ```
 awscli
 gawk
+jq
 docker
 ```

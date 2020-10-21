@@ -75,7 +75,6 @@ REPOSITORY_URI=$REPOSITORY_DOMAIN/$REPOSITORY_NAME:$JOB_NAME
 EXEC_FORM_CMD=`echo $SHELL_FORM_CMD | gawk -vFPAT='[^ ]*|"[^"]+"' '{out="\""$1"\""; for (i=2; i<=NF;i++) {if (substr($i, 1, 1) == "\"") { $i = substr($i, 2, length($i)-2)} out=out",\""$i"\""}; print out}'`
 
 echo "Pushing to repository... $REPOSITORY_URI"
-
 aws ecr get-login-password | docker login --username AWS --password-stdin $REPOSITORY_DOMAIN
 docker build -t $REPOSITORY_URI .
 docker push $REPOSITORY_URI
@@ -138,16 +137,25 @@ function getstatus {
     aws batch describe-jobs --jobs $JOB_ID | jq -r .jobs[0].status
 }
 
+j=0
+spinner="/|\\-/|\\-"
 STATUS=`getstatus`
-echo $STATUS
 while [ "$STATUS" != "SUCCEEDED" -a "$STATUS" != "FAILED" ]
 do
-    while [ `getstatus` == $STATUS ]; do sleep 2; done
-    STATUS=`getstatus`
     echo $STATUS
+    while [ `getstatus` == "$STATUS" ]
+    do
+        echo -n "${spinner:$j:1}"
+        echo -en "\010"
+        sleep 1
+        j=`echo $j | tr "0-7" "1-70"`
+    done
+    STATUS=`getstatus`
+
     if [ $STATUS == "RUNNING" ]
     then
         LOGSTREAM=`aws batch describe-jobs --jobs $JOB_ID | jq -r .jobs[0].container.logStreamName`
         echo "Log available at https://$REGION.console.aws.amazon.com/cloudwatch/home?region=$REGION#logEventViewer:group=/aws/batch/job;stream=$LOGSTREAM"
     fi
 done
+echo $STATUS

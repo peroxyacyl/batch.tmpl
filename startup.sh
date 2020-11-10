@@ -59,6 +59,7 @@ EOF
 function rmebs {
     set +e
     umount -l $EBS_PATH
+    sleep 60 # sleep for 1 minute not to be left in available state when spot host is terminated
     aws ec2 detach-volume --force --volume-id $VOLUME_ID
     timeout 600 bash -c "waitebsstate $VOLUME_ID available"
     aws ec2 delete-volume --volume-id $VOLUME_ID && echo "volume successfully deleted"
